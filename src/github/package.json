@@ -1,0 +1,44 @@
+{
+  "name": "@modelcontextprotocol/server-github",
+  "version": "0.6.2",
+  "description": "MCP server for using the GitHub API",
+  "license": "MIT",
+  "author": "Anthropic, PBC (https://anthropic.com)",
+  "homepage": "https://modelcontextprotocol.io",
+  "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+  "type": "module",
+  "bin": {
+    "mcp-server-github": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && shx chmod +x dist/*.js",
+    "prepare": "npm run build",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@middy/core": "^6.1.6",
+    "@middy/http-cors": "^6.1.6",
+    "@middy/http-error-handler": "^6.1.6",
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "@types/node": "^22",
+    "@types/node-fetch": "^2.6.12",
+    "http-errors": "^2.0.0",
+    "middy-mcp": "file:../middy-mcp",
+    "node-fetch": "^3.3.2",
+    "osls": "^3.51.0",
+    "universal-user-agent": "^7.0.2",
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.23.5"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.148",
+    "@types/http-errors": "^2.0.4",
+    "serverless-offline": "^14.4.0",
+    "shx": "^0.3.4",
+    "typescript": "^5.6.2"
+  },
+  "packageManager": "pnpm@9.15.1+sha512.1acb565e6193efbebda772702950469150cf12bcc764262e7587e71d19dc98a423dff9536e57ea44c49bdf790ff694e83c27be5faa23d67e0c033b583be4bfcf"
+}

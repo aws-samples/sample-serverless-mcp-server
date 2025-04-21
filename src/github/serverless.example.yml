@@ -1,0 +1,26 @@
+service: serverless-github-mcp-server
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs22.x
+  timeout: 30
+
+plugins:
+  - serverless-offline
+
+package:
+  excludeDevDependencies: true
+  
+functions:
+  mcpServer:
+    handler: dist/index.handler
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: <Your GitHub Personal Access Token>
+    events:
+      - http:
+          path: mcp
+          method: post
+          cors: true
+
