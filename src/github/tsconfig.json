@@ -21,6 +21,6 @@
     "declaration": true,
     "lib": ["es2022"],
   },
-  "include": ["src/**/*"],
+  "include": ["./**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
