@@ -17,6 +17,7 @@ import functools
 from contextvars import ContextVar
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Context variable to store current session ID
 current_session_id: ContextVar[Optional[str]] = ContextVar('current_session_id', default=None)
@@ -310,7 +311,6 @@ class LambdaMCPServer:
             if request.method == "tools/call":
                 tool_name = request.params.get("name")
                 tool_args = request.params.get("arguments", {})
-                
                 if tool_name not in self.tools:
                     return self._create_error_response(-32601, f"Tool '{tool_name}' not found", request.id, session_id=session_id)
                 

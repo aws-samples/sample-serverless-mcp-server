@@ -1,9 +1,9 @@
 from lambda_mcp.lambda_mcp import LambdaMCPServer
-from datetime import datetime, UTC
 import random
 import boto3
 import os
 import requests
+from typing import Dict, Any, Optional, List
 
 SERPAPI_API_KEY = "*******"
 # Get session table name from environment variable
@@ -13,7 +13,14 @@ session_table = os.environ.get('MCP_SESSION_TABLE', 'mcp_sessions')
 mcp_server = LambdaMCPServer(name="mcp-lambda-server", version="1.0.0", session_table=session_table)
 
 @mcp_server.tool()
-def search_website(search_term):
+def search_website(search_term:str) -> Dict:
+    """querying something which we don't know and need to search the website to get the exactly and latest information
+    Args:
+        search_term: user query text
+        
+    Returns:
+        search result string
+    """,
     params = {
         "api_key": SERPAPI_API_KEY,
         "engine": "google",
@@ -33,10 +40,6 @@ def search_website(search_term):
         return {"search_result":response.text}
 
 
-@mcp_server.tool()
-def get_time() -> str:
-    """Get the current UTC date and time."""
-    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 @mcp_server.tool()
 def count_s3_buckets() -> int:

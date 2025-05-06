@@ -10,7 +10,7 @@ from typing import Optional, Dict
 nest_asyncio.apply()
 
 class HttpMCPClient:
-    def __init__(self, server_url: str, access_key_id='', secret_access_key='', region='us-east-1'):
+    def __init__(self, server_url: str, access_key_id='', secret_access_key='', region='us-west-2',token=None):
         self.env = {
             'AWS_ACCESS_KEY_ID': access_key_id or os.environ.get('AWS_ACCESS_KEY_ID'),
             'AWS_SECRET_ACCESS_KEY': secret_access_key or os.environ.get('AWS_SECRET_ACCESS_KEY'),
@@ -23,6 +23,8 @@ class HttpMCPClient:
             "Accept": "text/event-stream, application/json",
             "jsonrpc":"2.0"
         }
+        if token:
+            self.headers["Authorization"] = f"Bearer {token}"
 
     async def initialize(self):
         """初始化会话。"""
@@ -39,6 +41,7 @@ class HttpMCPClient:
                             "clientInfo": {"name": "MCP Client", "version": "1.0"},
                             "capabilities": {},
                         },
+                        "id":0
                     },
                 )
                 response.raise_for_status()
@@ -58,6 +61,8 @@ class HttpMCPClient:
                     "method": "tools/list",
                     "id": 1
                 }
+                if self.session_id:
+                    self.headers['Mcp-Session-Id'] = self.session_id
 
                 response = await client.post(
                     f"{self.server_url}",
@@ -78,10 +83,13 @@ class HttpMCPClient:
             await self.initialize()
 
         async with httpx.AsyncClient() as client:
+            post_headers={**self.headers}
+            if self.session_id:
+                post_headers["Mcp-Session-Id"] = self.session_id
             try:
                 response = await client.post(
                     f"{self.server_url}",
-                    headers={"Mcp-Session-Id": self.session_id, **self.headers},
+                    headers=post_headers,
                     json={
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -125,16 +133,34 @@ class HttpMCPClient:
         await self.listen_sse()
 
 async def main():
-    #client = HttpMCPClient("http://ec2-35-93-77-218.us-west-2.compute.amazonaws.com:8080/message",
-    client = HttpMCPClient("https://wtaaklh1ga.execute-api.us-east-1.amazonaws.com/dev/mcp",
+    client = HttpMCPClient("http://ec2-XXXXXX.us-west-2.compute.amazonaws.com:8080/message")
+    await client.initialize()
+    response = await client.list_tools()
+    print((str(response['result'])))
+    response = await client.call_tool("search_codes", params={
+                          "search_term": "Swish",
+                          "repo_url":"https://github.com/qingyuan18/ComfyUI-AnyText.git"})
+    print(f"Response: {response}")
+    #await client.listen_sse()
+    
+    
+    client = HttpMCPClient("https://xxxxx.execute-api.us-east-1.amazonaws.com/dev/mcp",
                            region="us-east-1")
     await client.initialize()
     response = await client.list_tools()
     print((str(response['result'])))
-    #response = await client.call_tool("add", {"a": 5,"b":10000})
-    response = await client.call_tool("search_codes", params={
-                          "search_term": "Swish",
-                          "repo_url":"https://github.com/qingyuan18/ComfyUI-AnyText.git"})
+    response = await client.call_tool("add", {"a": 500,"b":10000})
+    print(f"Response: {response}")
+    #await client.listen_sse()
+    
+    
+
+    client = HttpMCPClient("https://xxxxx.execute-api.us-west-2.amazonaws.com/Prod/mcp",region="us-west-2",token='******')
+    await client.initialize()
+    response = await client.list_tools()
+    print((str(response['result'])))
+    response = await client.call_tool("searchWebsite", params={
+                          "search_term": "最火的重庆火锅店是哪里？"})
     print(f"Response: {response}")
     #await client.listen_sse()
 
