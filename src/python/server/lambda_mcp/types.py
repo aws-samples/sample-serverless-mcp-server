@@ -86,7 +86,7 @@ class JSONRPCRequest:
     def model_validate(cls, data: Dict) -> 'JSONRPCRequest':
         return cls(
             jsonrpc=data["jsonrpc"],
-            id=data.get("id"),
+            id=data.get("id") or 0,
             method=data["method"],
             params=data.get("params")
         )

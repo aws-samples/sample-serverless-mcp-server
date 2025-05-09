@@ -207,6 +207,7 @@ class LambdaMCPServer:
     def _create_success_response(self, result: Any, request_id: str, session_id: Optional[str] = None) -> Dict:
         """Create a standardized success response"""
         response = JSONRPCResponse(jsonrpc="2.0", id=request_id, result=result)
+        print("here1===",response.model_dump_json())
         
         headers = {
             "Content-Type": "application/json",
@@ -264,12 +265,13 @@ class LambdaMCPServer:
                 # Check if this is a notification (no id field)
                 if isinstance(body, dict) and "id" not in body:
                     logger.debug("Request is a notification")
-                    return {
-                        "statusCode": 204,
-                        "body": "",
-                        "headers": {"Content-Type": "application/json", "MCP-Version": "0.6"}
-                    }
-                    
+                    result = InitializeResult(
+                        protocolVersion="2024-11-05",
+                        serverInfo=ServerInfo(name=self.name, version=self.version),
+                        capabilities=Capabilities(tools={"list": True, "call": True})
+                    )
+                    request = JSONRPCRequest.model_validate(body)
+                    return self._create_success_response(result.model_dump(), request.id, session_id)
                 # Validate basic JSON-RPC structure
                 if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or "method" not in body:
                     return self._create_error_response(-32700, "Parse error", request_id)

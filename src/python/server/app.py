@@ -20,7 +20,7 @@ def search_website(search_term:str) -> Dict:
         
     Returns:
         search result string
-    """,
+    """
     params = {
         "api_key": SERPAPI_API_KEY,
         "engine": "google",
