@@ -1,3 +1,16 @@
-# No direct requirements needed - all provided by the layer 
+# Core dependencies
 boto3==1.37.37
 requests
+
+# ComfyUI integration
+# requests - already included above for HTTP calls to ComfyUI API
+
+# Image processing dependencies (optional, for advanced image analysis)
+# Pillow>=10.0.0
+
+# Built-in modules used:
+# json - built-in module
+# base64 - built-in module
+# time - built-in module
+# uuid - built-in module
+# os - built-in module

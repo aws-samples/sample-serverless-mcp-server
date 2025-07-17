@@ -1,10 +1,32 @@
-# Lambda MCP Server development & deploy demo (Streamable HTTP) 
+# Lambda MCP Server with ComfyUI Integration (Streamable HTTP)
 
+Based on [Lambda MCP demo](https://github.com/mikegc-aws/Lambda-MCP-Server), this project demonstrates how to build a stateless, serverless MCP server with minimal boilerplate and an excellent developer experience according to [MCP (Model Context Protocol)](https://github.com/modelcontextprotocol) tools using [AWS Lambda and AWS API gateway](https://aws.amazon.com/lambda/?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code).
 
-Based on [Lambda MCP demo](https://github.com/mikegc-aws/Lambda-MCP-Server), it demonstrates how to build a stateless, serverless MCP server with minimal boilerplate and an excellent developer experience according to [MCP (Model Context Protocol)](https://github.com/modelcontextprotocol) tools using [AWS Lambda and AWS API gateway](https://aws.amazon.com/lambda/?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code). 
+**Key Features:**
+- 🚀 **Serverless MCP Server**: Deploy to AWS Lambda with one command
+- 🎨 **ComfyUI Integration**: Generate images using Flux models (text-to-image & image-to-image)
+- 🔄 **Session Management**: Built-in state persistence across tool invocations
+- 🛡️ **Authentication**: Bearer token authentication with API Gateway
+- 📊 **Monitoring**: CloudWatch logs and metrics integration
+- 🔧 **Easy Development**: Simple decorator-based tool creation
 
-It also included client demonstrates integration with [Amazon Bedrock](https://aws.amazon.com/bedrock/?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code), to build further application such as LLM function calling or intelligent agent.
+It also includes client demonstrations for integration with [Amazon Bedrock](https://aws.amazon.com/bedrock/?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code), enabling LLM function calling and intelligent agent applications.
 
+## Project Structure
+
+```
+src/python/
+├── workflows/                    # ComfyUI workflow definitions
+│   ├── flux_t2i.json            # Text-to-image workflow
+│   └── flux_kontext.json        # Image-to-image workflow
+├── server/                       # MCP server implementation
+│   ├── app.py                   # Main MCP server with tools
+│   └── comfyui_generator.py     # ComfyUI integration logic
+├── template.yaml                # AWS SAM template
+├── samconfig-example.toml       # Deployment configuration template
+├── deploy.sh                    # One-click deployment script
+└── test_workflow_integration.py # Integration tests
+```
 
 ## Example
 
@@ -26,7 +48,35 @@ def lambda_handler(event, context):
     return mcp_server.handle_request(event, context) 
 ```
 
-That's it! :) 
+That's it! :)
+
+## Quick Start
+
+### 1. Clone and Setup
+```bash
+git clone <repository-url>
+cd src/python
+```
+
+### 2. Deploy with ComfyUI
+```bash
+# Deploy with your ComfyUI server URL
+./deploy.sh http://your-comfyui-server:8188
+```
+
+### 3. Test the Deployment
+```bash
+# Run integration tests
+python3 test_workflow_integration.py
+
+# The deployment will output your MCP server URL:
+# MCPServerApi: https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/Prod/mcp
+```
+
+### 4. Use with MCP Clients
+Configure your MCP client with:
+- **Server URL**: The API Gateway URL from deployment output
+- **Authentication**: Bearer token (set in deployment configuration)
 
 ## Session State Management
 
@@ -89,10 +139,12 @@ This is a proof-of-concept implementation of an python Streamable MCP server run
 
 ## Example Tools
 
-The server comes with three example tools that demonstrate different use cases:
+The server comes with several example tools that demonstrate different use cases:
 
 1. `search_website()`: using serper API to do internet search
 2. `count_s3_buckets()`: Counts [AWS S3](https://aws.amazon.com/s3/?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code) buckets in your account
+3. `generate_image_with_context()`: Generate images using ComfyUI with Flux models (text-to-image and image-to-image)
+4. `get_comfyui_config()`: Get ComfyUI configuration and available workflows
 
 ## Getting Started
 
@@ -114,23 +166,79 @@ Before running the client, ensure you have:
 
 ### Server Deployment
 
+#### Quick Deploy (Recommended)
+
 1. Clone this repository:
    ```bash
    git clone <repository-url>
+   cd src/python
    ```
+
+2. Deploy with ComfyUI integration:
+   ```bash
+   # One-step deployment with ComfyUI server URL
+   ./deploy.sh http://your-comfyui-server:8188
+   ```
+
+#### Manual Deployment
 
 1. Navigate to the server directory:
    ```bash
-   cd server-http-python-lambda
+   cd src/python
    ```
 
-1. Deploy using SAM:
+2. Configure deployment parameters:
+   ```bash
+   # Copy configuration template
+   cp samconfig-example.toml samconfig.toml
+
+   # Edit samconfig.toml and update:
+   # - McpAuthToken: Your secure authentication token
+   # - ComfyUIServerUrl: Your ComfyUI server address
+   # - Other ComfyUI parameters as needed
+   ```
+
+3. Deploy using SAM:
    ```bash
    sam build
-   sam deploy --guided
+   sam deploy
    ```
 
-   Note: You will be prompted for an `McpAuthToken`.  This is the Authorization Bearer token that will be requitred to call the endpoint. This simple implimentation uses an [AWS API Gateway authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-use-lambda-authorizer.html?trk=64e03f01-b931-4384-846e-db0ba9fa89f5&sc_channel=code) with the `McpAuthToken` passed in as an env var.  This can be swapped out for a production implimentation as required. 
+#### ComfyUI Configuration Parameters
+
+The following parameters can be configured in `samconfig.toml`:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `McpAuthToken` | - | **Required**: Authentication token for MCP server |
+| `ComfyUIServerUrl` | `http://localhost:8188` | **Required**: ComfyUI server address |
+| `ComfyUITimeout` | `300` | Generation timeout in seconds |
+| `ComfyUIPollInterval` | `2` | Polling interval in seconds |
+| `ComfyUIMaxRetries` | `3` | Maximum retry attempts |
+| `ComfyUIRequestTimeout` | `30` | Single request timeout in seconds |
+| `ComfyUIEnableFallback` | `true` | Enable fallback to mock images |
+
+#### Common Deployment Scenarios
+
+**Local ComfyUI Server:**
+```bash
+./deploy.sh http://localhost:8188
+```
+
+**ComfyUI on EC2:**
+```bash
+./deploy.sh http://ec2-xx-xx-xx-xx.compute-1.amazonaws.com:8188
+```
+
+**ComfyUI behind Load Balancer:**
+```bash
+./deploy.sh http://your-alb-url.us-east-1.elb.amazonaws.com:8188
+```
+
+**External ComfyUI Server:**
+```bash
+./deploy.sh http://your-external-server.com:8188
+```
 
 
 ## Adding New Tools
@@ -162,5 +270,123 @@ That's it! The decorator handles:
 - Response formatting
 - Error handling
 - MCP Documentation generation
+
+## ComfyUI Integration
+
+This MCP server includes integrated support for ComfyUI image generation using Flux models. The integration supports two main workflows:
+
+### Supported Workflows
+
+1. **Text-to-Image**: Generate images from text prompts using `flux_t2i.json`
+2. **Image-to-Image**: Transform existing images using `flux_kontext.json`
+
+### Workflow Files
+
+The ComfyUI workflows are stored as JSON files in the `workflows/` directory:
+
+```
+src/python/
+├── workflows/
+│   ├── flux_t2i.json      # Text-to-image workflow
+│   └── flux_kontext.json  # Image-to-image workflow
+├── server/
+│   ├── comfyui_generator.py  # ComfyUI integration logic
+│   └── app.py               # MCP server with ComfyUI tools
+```
+
+### ComfyUI Requirements
+
+To use the ComfyUI integration, ensure your ComfyUI server has:
+
+**Models:**
+- **UNet**: `flux1-dev-fp8.safetensors` or `flux1-dev-kontext_fp8_scaled.safetensors`
+- **VAE**: `ae.safetensors`
+- **CLIP**: `clip_l.safetensors`, `t5xxl_fp8_e4m3fn.safetensors`
+
+**Custom Nodes** (for flux_kontext workflow):
+- `FluxKontextImageScale`
+- `ETN_LoadImageBase64`
+- `Text Multiline`
+- `ImageStitch`
+- `ReferenceLatent`
+
+### Using ComfyUI Tools
+
+#### Text-to-Image Generation
+```python
+# Example MCP tool call
+result = generate_image_with_context(
+    prompt="A beautiful mountain landscape with snow-capped peaks",
+    workflow_type="text_to_image",
+    width=1024,
+    height=768,
+    steps=25,
+    cfg_scale=7.0
+)
+```
+
+#### Image-to-Image Generation
+```python
+# Example MCP tool call
+result = generate_image_with_context(
+    prompt="Transform into an oil painting style",
+    context_image_base64="data:image/jpeg;base64,/9j/4AAQ...",
+    workflow_type="image_to_image",
+    steps=20,
+    cfg_scale=1.0
+)
+```
+
+### Testing ComfyUI Integration
+
+Run the integration test to verify everything is working:
+
+```bash
+cd src/python
+python3 test_workflow_integration.py
+```
+
+This will test:
+- Workflow file loading
+- Parameter replacement
+- Node ID validation
+- Generation methods (with fallback if ComfyUI unavailable)
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **ComfyUI Connection Failed**
+   - Verify ComfyUI server is running on the specified URL
+   - Check network connectivity and firewall settings
+   - Ensure port 8188 is accessible
+
+2. **Workflow Loading Errors**
+   - Verify workflow JSON files are valid
+   - Check that all required custom nodes are installed
+   - Ensure model files are in the correct ComfyUI directories
+
+3. **Generation Timeouts**
+   - Increase `ComfyUITimeout` parameter
+   - Optimize generation parameters (reduce steps, image size)
+   - Check ComfyUI server performance
+
+**Debug Commands:**
+```bash
+# View Lambda logs
+sam logs -n McpServerFunction --stack-name mcp-comfyui-server
+
+# Test workflow loading locally
+python3 test_workflow_integration.py
+
+# Check ComfyUI server status
+curl http://your-comfyui-server:8188/queue
+```
+
+### Fallback Mechanism
+
+When ComfyUI is unavailable, the server automatically falls back to returning mock images (1x1 pixel) with detailed error information in the metadata. This ensures the MCP server remains functional even when ComfyUI is down.
+
+To disable fallback mode, set `ComfyUIEnableFallback=false` in your deployment configuration.
 
 

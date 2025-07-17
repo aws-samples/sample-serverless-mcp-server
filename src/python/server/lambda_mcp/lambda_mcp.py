@@ -136,6 +136,9 @@ class LambdaMCPServer:
                             arg_name, arg_desc = line.split(':', 1)
                             arg_descriptions[arg_name.strip()] = arg_desc.strip()
 
+            # Get function signature to check for default values
+            sig = inspect.signature(func)
+
             # Build properties from type hints
             for param_name, param_type in hints.items():
                 param_schema = {"type": "string"}  # Default to string
@@ -145,12 +148,24 @@ class LambdaMCPServer:
                     param_schema["type"] = "number"
                 elif param_type == bool:
                     param_schema["type"] = "boolean"
-                
+
+                # Check for image parameters based on naming convention
+                if "image" in param_name.lower() and "base64" in param_name.lower():
+                    param_schema = {
+                        "type": "string",
+                        "format": "data-url",
+                        "description": "Base64 encoded image data with data URL prefix (e.g., data:image/jpeg;base64,...)"
+                    }
+
                 if param_name in arg_descriptions:
                     param_schema["description"] = arg_descriptions[param_name]
-                    
+
                 properties[param_name] = param_schema
-                required.append(param_name)
+
+                # Only add to required if parameter has no default value
+                param = sig.parameters.get(param_name)
+                if param and param.default == inspect.Parameter.empty:
+                    required.append(param_name)
             
             # Create tool schema
             tool_schema = {
@@ -318,7 +333,17 @@ class LambdaMCPServer:
                 
                 try:
                     result = self.tool_implementations[tool_name](**tool_args)
-                    content = [TextContent(text=str(result)).model_dump()]
+
+                    # Check if result is an image response
+                    if isinstance(result, dict) and result.get('type') == 'image':
+                        from .types import ImageContent
+                        content = [ImageContent(
+                            data=result['data'],
+                            mimeType=result['mimeType']
+                        ).model_dump()]
+                    else:
+                        content = [TextContent(text=str(result)).model_dump()]
+
                     return self._create_success_response({"content": content}, request.id, session_id)
                 except Exception as e:
                     logger.error(f"Error executing tool {tool_name}: {e}")

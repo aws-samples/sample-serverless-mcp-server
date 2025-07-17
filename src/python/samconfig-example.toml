@@ -1,0 +1,28 @@
+# SAM configuration file example for ComfyUI MCP Server
+# Copy this file to samconfig.toml and update the values
+
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "mcp-comfyui-server"
+s3_bucket = "your-sam-deployment-bucket"  # Replace with your S3 bucket
+s3_prefix = "mcp-comfyui-server"
+region = "us-east-1"  # Replace with your preferred region
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = [
+    "McpAuthToken=your-secret-auth-token-here",  # Replace with a secure token
+    "ComfyUIServerUrl=http://your-comfyui-server:8188",  # Replace with your ComfyUI server URL
+    "ComfyUITimeout=300",
+    "ComfyUIPollInterval=2", 
+    "ComfyUIMaxRetries=3",
+    "ComfyUIRequestTimeout=30",
+    "ComfyUIEnableFallback=true"
+]
+
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true

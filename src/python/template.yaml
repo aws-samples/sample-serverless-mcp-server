@@ -8,6 +8,37 @@ Parameters:
     NoEcho: true
     Description: "The authentication token for MCP"
 
+  ComfyUIServerUrl:
+    Type: String
+    Default: "http://localhost:8188"
+    Description: "ComfyUI server URL (e.g., http://your-comfyui-server:8188)"
+
+  ComfyUITimeout:
+    Type: Number
+    Default: 300
+    Description: "ComfyUI generation timeout in seconds"
+
+  ComfyUIPollInterval:
+    Type: Number
+    Default: 2
+    Description: "ComfyUI polling interval in seconds"
+
+  ComfyUIMaxRetries:
+    Type: Number
+    Default: 3
+    Description: "Maximum retry attempts for ComfyUI requests"
+
+  ComfyUIRequestTimeout:
+    Type: Number
+    Default: 30
+    Description: "ComfyUI request timeout in seconds"
+
+  ComfyUIEnableFallback:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: "Enable fallback to mock images when ComfyUI is unavailable"
+
 Globals:
   Function:
     Timeout: 60
@@ -69,6 +100,12 @@ Resources:
       Environment:
         Variables:
           MCP_SESSION_TABLE: !Ref McpSessionsTable
+          COMFYUI_SERVER_URL: !Ref ComfyUIServerUrl
+          COMFYUI_TIMEOUT: !Ref ComfyUITimeout
+          COMFYUI_POLL_INTERVAL: !Ref ComfyUIPollInterval
+          COMFYUI_MAX_RETRIES: !Ref ComfyUIMaxRetries
+          COMFYUI_REQUEST_TIMEOUT: !Ref ComfyUIRequestTimeout
+          COMFYUI_ENABLE_FALLBACK: !Ref ComfyUIEnableFallback
       Policies:
         - Statement:
             - Effect: Allow
