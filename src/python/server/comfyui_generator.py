@@ -68,6 +68,12 @@ class WorkflowLoader:
         elif workflow_type == "image_to_image":
             # flux_kontext.json specific updates
             self._update_flux_kontext_parameters(updated_workflow, parameters)
+        elif workflow_type == "text_to_video":
+            # wanv_t2v.json specific updates
+            self._update_wan_t2v_parameters(updated_workflow, parameters)
+        elif workflow_type == "image_to_video":
+            # wan_i2v.json specific updates
+            self._update_wan_i2v_parameters(updated_workflow, parameters)
 
         return updated_workflow
 
@@ -126,6 +132,60 @@ class WorkflowLoader:
         # Node 35: FluxGuidance
         if "35" in workflow and "guidance" in parameters:
             workflow["35"]["inputs"]["guidance"] = parameters["guidance"]
+
+    def _update_wan_t2v_parameters(self, workflow: Dict, parameters: Dict):
+        """Update parameters for wanv_t2v workflow (text to video)"""
+        # Node 16: WanVideoTextEncode (text prompt input)
+        if "16" in workflow:
+            if "prompt" in parameters:
+                workflow["16"]["widgets_values"][0] = parameters["prompt"]
+            if "negative_prompt" in parameters:
+                workflow["16"]["widgets_values"][1] = parameters["negative_prompt"]
+
+        # Node 27: WanVideoSampler parameters
+        if "27" in workflow:
+            sampler_widgets = workflow["27"]["widgets_values"]
+            if "steps" in parameters:
+                sampler_widgets[0] = parameters["steps"]  # steps
+            if "cfg" in parameters:
+                sampler_widgets[1] = parameters["cfg"]  # cfg
+            if "seed" in parameters:
+                sampler_widgets[3] = parameters["seed"]  # seed
+
+        # Node 30: VHS_VideoCombine (video output settings)
+        if "30" in workflow and "frame_rate" in parameters:
+            workflow["30"]["widgets_values"]["frame_rate"] = parameters["frame_rate"]
+
+    def _update_wan_i2v_parameters(self, workflow: Dict, parameters: Dict):
+        """Update parameters for wan_i2v workflow (image to video)"""
+        # Node 16: WanVideoTextEncode (text prompt input)
+        if "16" in workflow:
+            if "prompt" in parameters:
+                workflow["16"]["widgets_values"][0] = parameters["prompt"]
+            if "negative_prompt" in parameters:
+                workflow["16"]["widgets_values"][1] = parameters["negative_prompt"]
+
+        # Node 18: LoadImage (input image)
+        if "18" in workflow and "image_filename" in parameters:
+            workflow["18"]["widgets_values"][0] = parameters["image_filename"]
+
+        # Node 27: WanVideoSampler parameters
+        if "27" in workflow:
+            sampler_widgets = workflow["27"]["widgets_values"]
+            if "steps" in parameters:
+                sampler_widgets[0] = parameters["steps"]  # steps
+            if "cfg" in parameters:
+                sampler_widgets[1] = parameters["cfg"]  # cfg
+            if "seed" in parameters:
+                sampler_widgets[3] = parameters["seed"]  # seed
+
+        # Node 30: VHS_VideoCombine (video output settings) - first occurrence
+        if "30" in workflow and "frame_rate" in parameters:
+            workflow["30"]["widgets_values"]["frame_rate"] = parameters["frame_rate"]
+
+        # Node 38: VHS_VideoCombine (video output settings) - second occurrence
+        if "38" in workflow and "frame_rate" in parameters:
+            workflow["38"]["widgets_values"]["frame_rate"] = parameters["frame_rate"]
 
 
 
@@ -313,8 +373,9 @@ class ComfyUIGenerator:
 
             outputs = prompt_data.get("outputs", {})
 
-            # Find the SaveImage node output
+            # Find the SaveImage or VHS_VideoCombine node output
             for node_id, node_output in outputs.items():
+                # Handle image outputs
                 if "images" in node_output:
                     images = node_output["images"]
                     if images:
@@ -368,7 +429,62 @@ class ComfyUIGenerator:
                                     continue
                                 return {"error": f"Error downloading image: {str(e)}"}
 
-            return {"error": "No valid images found in ComfyUI output"}
+                # Handle video outputs
+                elif "gifs" in node_output:
+                    videos = node_output["gifs"]
+                    if videos:
+                        # Get the first video
+                        video_info = videos[0]
+
+                        # Validate video info
+                        if not video_info.get('filename'):
+                            continue
+
+                        video_url = f"{self.config.server_url}/view?filename={video_info['filename']}&subfolder={video_info.get('subfolder', '')}&type={video_info.get('type', 'output')}"
+
+                        # Download the video with retry logic
+                        for attempt in range(3):
+                            try:
+                                video_response = requests.get(
+                                    video_url,
+                                    timeout=self.config.request_timeout * 2  # Videos may take longer
+                                )
+
+                                if video_response.status_code == 200:
+                                    # Validate video content
+                                    if len(video_response.content) == 0:
+                                        if attempt < 2:
+                                            time.sleep(1)
+                                            continue
+                                        return {"error": "Downloaded video is empty"}
+
+                                    video_base64 = base64.b64encode(video_response.content).decode('utf-8')
+
+                                    return {
+                                        "video_data": video_base64,
+                                        "generation_time": time.time() - start_time,
+                                        "prompt_id": prompt_id,
+                                        "video_size": len(video_response.content),
+                                        "filename": video_info['filename']
+                                    }
+                                else:
+                                    if attempt < 2:
+                                        time.sleep(1)
+                                        continue
+                                    return {"error": f"Failed to download video (HTTP {video_response.status_code})"}
+
+                            except requests.exceptions.Timeout:
+                                if attempt < 2:
+                                    time.sleep(1)
+                                    continue
+                                return {"error": "Timeout downloading video"}
+                            except Exception as e:
+                                if attempt < 2:
+                                    time.sleep(1)
+                                    continue
+                                return {"error": f"Error downloading video: {str(e)}"}
+
+            return {"error": "No valid images or videos found in ComfyUI output"}
 
         except requests.exceptions.Timeout:
             return {"error": "Timeout getting workflow result"}
@@ -535,6 +651,172 @@ class ComfyUIGenerator:
                 )
             return {"error": f"Image-to-image generation failed: {str(e)}"}
 
+    def generate_text_to_video(self, prompt: str, steps: int = 15, cfg_scale: float = 6.0,
+                              seed: int = -1, frame_rate: int = 16,
+                              negative_prompt: str = "bad quality video, blurry, low resolution") -> Dict:
+        """Generate video from text prompt using wanv_t2v.json workflow"""
+        try:
+            # Validate inputs
+            if not prompt or not prompt.strip():
+                return {"error": "Prompt cannot be empty"}
+
+            if seed == -1:
+                seed = self.generate_seed()
+
+            # Load workflow template
+            workflow = self.workflow_loader.load_workflow("wanv_t2v")
+
+            # Update workflow parameters
+            parameters = {
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "steps": steps,
+                "cfg": cfg_scale,
+                "seed": seed,
+                "frame_rate": frame_rate
+            }
+
+            updated_workflow = self.workflow_loader.update_workflow_parameters(workflow, parameters, "text_to_video")
+
+            # Submit workflow
+            result = self.submit_workflow(updated_workflow)
+
+            if result.get('error'):
+                if self.config.enable_fallback:
+                    return self.get_mock_video_response(
+                        operation="text_to_video",
+                        prompt=prompt,
+                        error=result['error']
+                    )
+                return {"error": result['error']}
+
+            # Check if we got video data
+            if 'video_data' in result:
+                return {
+                    'type': 'video',
+                    'data': f"data:video/mp4;base64,{result['video_data']}",
+                    'mimeType': 'video/mp4',
+                    'metadata': {
+                        'prompt': prompt,
+                        'negative_prompt': negative_prompt,
+                        'workflow_type': 'text_to_video',
+                        'workflow_file': 'wanv_t2v.json',
+                        'steps': steps,
+                        'cfg_scale': cfg_scale,
+                        'seed': seed,
+                        'frame_rate': frame_rate,
+                        'generation_time': result.get('generation_time', 0),
+                        'video_size': result.get('video_size', 0),
+                        'filename': result.get('filename', '')
+                    }
+                }
+            else:
+                return {"error": "No video data received from ComfyUI"}
+
+        except FileNotFoundError:
+            error_msg = "wanv_t2v.json workflow file not found"
+            if self.config.enable_fallback:
+                return self.get_mock_video_response(
+                    operation="text_to_video",
+                    prompt=prompt,
+                    error=error_msg
+                )
+            return {"error": error_msg}
+        except Exception as e:
+            if self.config.enable_fallback:
+                return self.get_mock_video_response(
+                    operation="text_to_video",
+                    prompt=prompt,
+                    error=str(e)
+                )
+            return {"error": f"Text-to-video generation failed: {str(e)}"}
+
+    def generate_image_to_video(self, prompt: str, image_data: str, steps: int = 15,
+                               cfg_scale: float = 6.0, seed: int = -1, frame_rate: int = 16,
+                               negative_prompt: str = "bad quality video, blurry, low resolution") -> Dict:
+        """Generate video from image and text prompt using wan_i2v.json workflow"""
+        try:
+            # Validate input image
+            _, base64_data = self.validate_image_data(image_data)
+
+            if seed == -1:
+                seed = self.generate_seed()
+
+            # Load workflow template
+            workflow = self.workflow_loader.load_workflow("wan_i2v")
+
+            # For image-to-video, we need to reference the image filename
+            # In a real implementation, you would upload the image to ComfyUI's input directory
+            # For now, we'll use a placeholder filename based on the image data
+            temp_filename = f"temp_input_{int(time.time())}.png"
+
+            # Update workflow parameters
+            parameters = {
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "image_filename": temp_filename,  # Reference to the uploaded image
+                "image_data": base64_data,  # Store the image data for potential use
+                "steps": steps,
+                "cfg": cfg_scale,
+                "seed": seed,
+                "frame_rate": frame_rate
+            }
+
+            updated_workflow = self.workflow_loader.update_workflow_parameters(workflow, parameters, "image_to_video")
+
+            # Submit workflow
+            result = self.submit_workflow(updated_workflow)
+
+            if result.get('error'):
+                if self.config.enable_fallback:
+                    return self.get_mock_video_response(
+                        operation="image_to_video",
+                        prompt=prompt,
+                        error=result['error']
+                    )
+                return {"error": result['error']}
+
+            # Check if we got video data
+            if 'video_data' in result:
+                return {
+                    'type': 'video',
+                    'data': f"data:video/mp4;base64,{result['video_data']}",
+                    'mimeType': 'video/mp4',
+                    'metadata': {
+                        'prompt': prompt,
+                        'negative_prompt': negative_prompt,
+                        'workflow_type': 'image_to_video',
+                        'workflow_file': 'wan_i2v.json',
+                        'steps': steps,
+                        'cfg_scale': cfg_scale,
+                        'seed': seed,
+                        'frame_rate': frame_rate,
+                        'generation_time': result.get('generation_time', 0),
+                        'video_size': result.get('video_size', 0),
+                        'filename': result.get('filename', '')
+                    }
+                }
+            else:
+                return {"error": "No video data received from ComfyUI"}
+
+        except FileNotFoundError:
+            error_msg = "wan_i2v.json workflow file not found"
+            if self.config.enable_fallback:
+                return self.get_mock_video_response(
+                    operation="image_to_video",
+                    prompt=prompt,
+                    error=error_msg
+                )
+            return {"error": error_msg}
+        except Exception as e:
+            if self.config.enable_fallback:
+                return self.get_mock_video_response(
+                    operation="image_to_video",
+                    prompt=prompt,
+                    error=str(e)
+                )
+            return {"error": f"Image-to-video generation failed: {str(e)}"}
+
 
 
     def get_mock_image_response(self, operation: str, **metadata) -> Dict:
@@ -548,6 +830,24 @@ class ComfyUIGenerator:
             'metadata': {
                 'operation': f"{operation} (mock)",
                 'note': 'Mock image due to ComfyUI unavailability',
+                'server_url': self.config.server_url,
+                'fallback_enabled': self.config.enable_fallback,
+                **metadata
+            }
+        }
+
+    def get_mock_video_response(self, operation: str, **metadata) -> Dict:
+        """Generate a mock video response for testing/fallback"""
+        # A minimal MP4 video (1 frame, black screen) encoded in base64
+        mock_video_base64 = "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"
+
+        return {
+            'type': 'video',
+            'data': f"data:video/mp4;base64,{mock_video_base64}",
+            'mimeType': 'video/mp4',
+            'metadata': {
+                'operation': f"{operation} (mock)",
+                'note': 'Mock video due to ComfyUI unavailability',
                 'server_url': self.config.server_url,
                 'fallback_enabled': self.config.enable_fallback,
                 **metadata
@@ -594,7 +894,7 @@ class ConfigManager:
     @staticmethod
     def get_available_workflows() -> list[str]:
         """Get list of available workflow files"""
-        return ['flux_t2i', 'flux_kontext']
+        return ['flux_t2i', 'flux_kontext', 'wanv_t2v', 'wan_i2v']
 
 
 class ImageUtils:

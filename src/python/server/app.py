@@ -3,7 +3,7 @@ import boto3
 import os
 import requests
 from typing import Dict
-from comfyui_generator import ComfyUIGenerator, ImageUtils, ConfigManager
+from comfyui_generator import ComfyUIGenerator, ConfigManager
 
 SERPAPI_API_KEY = "*******"
 # Get session table name from environment variable
@@ -139,6 +139,52 @@ def get_comfyui_config() -> Dict:
         }
     except Exception as e:
         return {"error": f"Failed to get ComfyUI configuration: {str(e)}"}
+
+@mcp_server.tool()
+def generate_video_with_context(prompt: str, context_image_base64: str = None, workflow_type: str = "text_to_video", steps: int = 15, cfg_scale: float = 6.0, seed: int = -1, frame_rate: int = 16) -> Dict:
+    """Generate video using ComfyUI with optional context image for image-to-video scenarios.
+
+    Args:
+        prompt: Text description for video generation
+        context_image_base64: Base64 encoded context image with data URL prefix (optional, required for image_to_video)
+        workflow_type: Type of workflow (text_to_video, image_to_video)
+        steps: Number of sampling steps (default: 15)
+        cfg_scale: CFG scale for guidance (default: 6.0)
+        seed: Random seed (-1 for random, default: -1)
+        frame_rate: Video frame rate (default: 16)
+
+    Returns:
+        Generated video data with metadata
+    """
+    try:
+        if workflow_type == "text_to_video":
+            return comfyui_generator.generate_text_to_video(
+                prompt=prompt,
+                steps=steps,
+                cfg_scale=cfg_scale,
+                seed=seed,
+                frame_rate=frame_rate
+            )
+        elif workflow_type == "image_to_video" and context_image_base64:
+            return comfyui_generator.generate_image_to_video(
+                prompt=prompt,
+                image_data=context_image_base64,
+                steps=steps,
+                cfg_scale=cfg_scale,
+                seed=seed,
+                frame_rate=frame_rate
+            )
+        else:
+            return {"error": "Invalid workflow_type or missing context_image_base64 for image_to_video"}
+
+    except Exception as e:
+        # Fallback to mock video for testing
+        print(f"ComfyUI API error, using mock video: {str(e)}")
+        return comfyui_generator.get_mock_video_response(
+            operation=workflow_type,
+            prompt=prompt,
+            has_context_image=context_image_base64 is not None
+        )
 
 def lambda_handler(event, context):
     """AWS Lambda handler function."""
