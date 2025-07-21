@@ -1,0 +1,6 @@
+mcp
+boto3
+requests
+fastapi
+uvicorn
+starlette
