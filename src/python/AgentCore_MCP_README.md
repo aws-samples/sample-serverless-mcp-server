@@ -7,10 +7,17 @@
 这个示例包含了将 `server/app.py` 中的 MCP server 工具适配并部署到 AWS Bedrock AgentCore Runtime 的完整流程，包括：
 
 - 网站搜索工具 (`search_website`)
-- S3 存储桶计数工具 (`count_s3_buckets`) 
-- 图像生成工具 (`generate_image_with_context`)
+- S3 存储桶计数工具 (`count_s3_buckets`)
+- 图像生成工具 (`generate_image_with_context`) - 支持真实的 ComfyUI 调用
 - ComfyUI 配置获取工具 (`get_comfyui_config`)
-- 视频生成工具 (`generate_video_with_context`)
+- 视频生成工具 (`generate_video_with_context`) - 支持真实的 ComfyUI 调用
+
+### 新增功能
+
+- **真实 ComfyUI 集成**: 支持连接到真实的 ComfyUI 服务器进行图像和视频生成
+- **环境变量配置**: 通过环境变量配置 ComfyUI 服务器 URL 和其他参数
+- **智能回退机制**: 当 ComfyUI 不可用时自动回退到模拟响应
+- **连接性检测**: 自动检测 ComfyUI 服务器连接状态
 
 ## 文件说明
 
@@ -24,6 +31,36 @@
 ### 支持文件
 
 - **`AgentCore_MCP_README.md`** - 本文档
+
+## 环境变量配置
+
+在部署之前，可以配置以下环境变量来自定义 ComfyUI 集成：
+
+```bash
+# ComfyUI 服务器配置
+export COMFYUI_SERVER_URL="http://your-comfyui-server:8188"  # 默认: http://localhost:8188
+export COMFYUI_TIMEOUT="300"                                 # 生成超时时间（秒），默认: 300
+export COMFYUI_POLL_INTERVAL="2"                            # 轮询间隔（秒），默认: 2
+export COMFYUI_MAX_RETRIES="3"                              # 最大重试次数，默认: 3
+export COMFYUI_ENABLE_FALLBACK="true"                       # 启用回退模式，默认: true
+
+# SerpAPI 配置（用于网站搜索）
+export SERPAPI_API_KEY="your_serpapi_key_here"
+```
+
+### ComfyUI 配置说明
+
+- **COMFYUI_SERVER_URL**: ComfyUI 服务器的完整 URL，包括端口号
+- **COMFYUI_TIMEOUT**: 单次生成任务的最大等待时间（秒）
+- **COMFYUI_POLL_INTERVAL**: 检查任务完成状态的轮询间隔（秒）
+- **COMFYUI_MAX_RETRIES**: 连接失败时的最大重试次数
+- **COMFYUI_ENABLE_FALLBACK**: 当 ComfyUI 不可用时是否启用模拟响应
+
+**重要说明**：
+- 如果 ComfyUI 服务器不可访问且启用了回退模式，系统将返回模拟的图像/视频数据
+- 如果禁用回退模式，当 ComfyUI 不可用时将返回错误信息
+- 确保 ComfyUI 服务器可以从 AgentCore Runtime 的网络环境访问
+- 对于生产环境，建议将 ComfyUI 部署在同一 VPC 内以确保网络连通性
 
 ## 前提条件
 
@@ -54,11 +91,28 @@ pip install mcp bedrock-agentcore-starter-toolkit boto3 requests fastapi uvicorn
 
 ## 快速开始
 
+### 步骤 0: 配置环境变量（可选）
+
+如果您有运行中的 ComfyUI 服务器，请先配置环境变量：
+
+```bash
+# 配置 ComfyUI 服务器 URL
+export COMFYUI_SERVER_URL="http://your-comfyui-server:8188"
+
+# 配置 SerpAPI 密钥（用于网站搜索）
+export SERPAPI_API_KEY="your_serpapi_key_here"
+
+# 其他可选配置
+export COMFYUI_TIMEOUT="300"
+export COMFYUI_ENABLE_FALLBACK="true"
+```
+
 ### 方法 1: 使用 Jupyter Notebook（推荐）
 
 1. 打开 `agentcore_hosting_mcp_sample.ipynb`
 2. 按顺序执行所有单元格
 3. 按照提示配置认证和部署
+4. 环境变量将自动传递给 AgentCore Runtime
 
 ### 方法 2: 使用自动化脚本
 
@@ -129,28 +183,49 @@ python agentcore_deployment_script.py
 - **返回**: 存储桶数量（整数）
 
 ### 3. generate_image_with_context
-- **功能**: 图像生成（模拟 ComfyUI）
-- **参数**: 
+- **功能**: 图像生成（支持真实 ComfyUI 集成）
+- **参数**:
   - `prompt`: 文本描述
   - `context_image_base64`: 上下文图像（可选）
-  - `workflow_type`: 工作流类型
+  - `workflow_type`: 工作流类型 (text_to_image, image_to_image, inpainting)
   - `width`, `height`: 图像尺寸
   - `steps`, `cfg_scale`, `seed`: 生成参数
-- **返回**: 生成结果和元数据
+- **返回**:
+  - 成功时：Base64 编码的图像数据和元数据
+  - 失败时：错误信息或模拟响应（如果启用回退）
+- **特性**:
+  - 自动检测 ComfyUI 服务器连接状态
+  - 支持智能回退到模拟响应
+  - 实时轮询生成进度
+  - 完整的错误处理和重试机制
 
 ### 4. get_comfyui_config
-- **功能**: 获取 ComfyUI 配置信息
+- **功能**: 获取 ComfyUI 配置信息和连接状态
 - **参数**: 无
-- **返回**: 配置字典
+- **返回**:
+  - 服务器 URL 和连接状态
+  - 可用工作流类型
+  - 工作流预设参数
+  - 推荐图像尺寸
+  - 超时和重试配置
+- **特性**:
+  - 实时连接性检测
+  - 配置参数验证
 
 ### 5. generate_video_with_context
-- **功能**: 视频生成（模拟 ComfyUI）
-- **参数**: 
+- **功能**: 视频生成（支持真实 ComfyUI 集成）
+- **参数**:
   - `prompt`: 文本描述
-  - `context_image_base64`: 上下文图像（可选）
-  - `workflow_type`: 工作流类型
+  - `context_image_base64`: 上下文图像（image_to_video 必需）
+  - `workflow_type`: 工作流类型 (text_to_video, image_to_video)
   - `steps`, `cfg_scale`, `seed`, `frame_rate`: 生成参数
-- **返回**: 生成结果和元数据
+- **返回**:
+  - 成功时：Base64 编码的视频数据和元数据
+  - 失败时：错误信息或模拟响应（如果启用回退）
+- **特性**:
+  - 支持文本到视频和图像到视频转换
+  - 自动处理视频编码和格式转换
+  - 扩展超时处理（视频生成通常需要更长时间）
 
 ## 测试
 
@@ -195,6 +270,35 @@ npx @modelcontextprotocol/inspector
    解决: 设置 AWS_REGION 环境变量或配置 AWS CLI
    ```
 
+5. **ComfyUI 连接问题**
+   ```
+   错误: ComfyUI server is not accessible
+   解决:
+   - 检查 COMFYUI_SERVER_URL 环境变量是否正确
+   - 确认 ComfyUI 服务器正在运行
+   - 验证网络连通性（ping 测试）
+   - 检查防火墙和安全组设置
+   ```
+
+6. **ComfyUI 生成超时**
+   ```
+   错误: ComfyUI generation timeout after 300 seconds
+   解决:
+   - 增加 COMFYUI_TIMEOUT 环境变量值
+   - 检查 ComfyUI 服务器性能和负载
+   - 减少生成参数复杂度（降低 steps 或分辨率）
+   ```
+
+7. **ComfyUI 工作流错误**
+   ```
+   错误: ComfyUI execution error
+   解决:
+   - 检查 ComfyUI 服务器日志
+   - 确认所需的模型文件已安装
+   - 验证工作流节点配置
+   - 检查输入参数格式和范围
+   ```
+
 ### 调试技巧
 
 1. **查看日志**：
@@ -219,6 +323,38 @@ npx @modelcontextprotocol/inspector
    print(response['SecretString'])
    ```
 
+4. **测试 ComfyUI 连接**：
+   ```bash
+   # 测试 ComfyUI 服务器连接
+   curl http://your-comfyui-server:8188/queue
+
+   # 查看 ComfyUI 系统信息
+   curl http://your-comfyui-server:8188/system_stats
+   ```
+
+5. **ComfyUI 调试**：
+   ```python
+   # 测试 ComfyUI 配置工具
+   import requests
+   import os
+
+   comfyui_url = os.environ.get('COMFYUI_SERVER_URL', 'http://localhost:8188')
+   try:
+       response = requests.get(f"{comfyui_url}/queue", timeout=5)
+       print(f"ComfyUI 连接状态: {response.status_code}")
+   except Exception as e:
+       print(f"ComfyUI 连接失败: {e}")
+   ```
+
+6. **启用详细错误日志**：
+   ```bash
+   # 禁用回退模式以查看真实错误
+   export COMFYUI_ENABLE_FALLBACK="false"
+
+   # 增加调试输出
+   export COMFYUI_POLL_INTERVAL="1"  # 更频繁的状态检查
+   ```
+
 ## 清理资源
 
 运行 notebook 中的清理单元格或手动删除：
@@ -238,11 +374,70 @@ npx @modelcontextprotocol/inspector
 4. **集成**: 与其他 AWS 服务集成
 5. **优化**: 根据使用情况优化性能
 
+## ComfyUI 部署建议
+
+### 生产环境部署
+
+1. **网络配置**:
+   - 将 ComfyUI 部署在与 AgentCore Runtime 相同的 VPC 内
+   - 使用私有子网和安全组限制访问
+   - 配置 Application Load Balancer 进行负载均衡
+
+2. **性能优化**:
+   - 使用 GPU 实例（如 EC2 G4/P3/P4 实例）
+   - 配置足够的内存和存储空间
+   - 预加载常用模型以减少启动时间
+
+3. **高可用性**:
+   - 部署多个 ComfyUI 实例
+   - 使用 Auto Scaling Group 自动扩缩容
+   - 配置健康检查和故障转移
+
+4. **安全性**:
+   - 使用 IAM 角色和安全组控制访问
+   - 启用 VPC Flow Logs 监控网络流量
+   - 定期更新 ComfyUI 和依赖项
+
+### Docker 部署示例
+
+```dockerfile
+# Dockerfile for ComfyUI
+FROM nvidia/cuda:11.8-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get install -y python3 python3-pip git
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git
+WORKDIR /ComfyUI
+RUN pip3 install -r requirements.txt
+
+EXPOSE 8188
+CMD ["python3", "main.py", "--listen", "0.0.0.0", "--port", "8188"]
+```
+
+```bash
+# 构建和运行
+docker build -t comfyui .
+docker run -d --gpus all -p 8188:8188 --name comfyui comfyui
+```
+
 ## 参考资源
 
+### AWS 和 MCP 相关
 - [AWS Bedrock AgentCore 文档](https://docs.aws.amazon.com/bedrock-agentcore/)
 - [MCP 协议规范](https://modelcontextprotocol.io/)
 - [AgentCore 示例仓库](https://github.com/awslabs/amazon-bedrock-agentcore-samples)
+- [bedrock-agentcore-starter-toolkit](https://pypi.org/project/bedrock-agentcore-starter-toolkit/)
+
+### ComfyUI 相关
+- [ComfyUI 官方仓库](https://github.com/comfyanonymous/ComfyUI)
+- [ComfyUI 文档](https://docs.comfy.org/)
+- [ComfyUI API 文档](https://github.com/comfyanonymous/ComfyUI/blob/master/server.py)
+- [ComfyUI 模型下载](https://huggingface.co/models?library=diffusers)
+- [ComfyUI 工作流示例](https://comfyworkflows.com/)
+
+### Docker 和部署
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+- [AWS EC2 GPU 实例](https://aws.amazon.com/ec2/instance-types/g4/)
+- [AWS ECS 服务](https://aws.amazon.com/ecs/)
 
 ## 支持
 
