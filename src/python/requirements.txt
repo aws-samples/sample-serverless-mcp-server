@@ -4,3 +4,7 @@ requests
 fastapi
 uvicorn
 starlette
+strands
+strands-agents-tools[mem0_memory]
+python-dotenv
+pillow

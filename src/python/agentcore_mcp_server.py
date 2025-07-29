@@ -17,7 +17,6 @@ COMFYUI_SERVER_URL = os.environ.get('COMFYUI_SERVER_URL', 'http://localhost:8188
 COMFYUI_TIMEOUT = int(os.environ.get('COMFYUI_TIMEOUT', '300'))
 COMFYUI_POLL_INTERVAL = int(os.environ.get('COMFYUI_POLL_INTERVAL', '2'))
 COMFYUI_MAX_RETRIES = int(os.environ.get('COMFYUI_MAX_RETRIES', '3'))
-COMFYUI_ENABLE_FALLBACK = os.environ.get('COMFYUI_ENABLE_FALLBACK', 'true').lower() == 'true'
 
 # ComfyUI helper functions
 def generate_seed() -> int:
@@ -411,40 +410,7 @@ def get_comfyui_result(prompt_id: str, start_time: float) -> Dict:
     except Exception as e:
         return {"error": f"Failed to get workflow result: {str(e)}"}
 
-def get_mock_image_response(operation: str, **metadata) -> Dict:
-    """生成模拟图像响应"""
-    mock_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
 
-    return {
-        'type': 'image',
-        'data': f"data:image/png;base64,{mock_image_base64}",
-        'mimeType': 'image/png',
-        'metadata': {
-            'operation': f"{operation} (mock)",
-            'note': 'Mock image due to ComfyUI unavailability',
-            'server_url': COMFYUI_SERVER_URL,
-            'fallback_enabled': COMFYUI_ENABLE_FALLBACK,
-            **metadata
-        }
-    }
-
-def get_mock_video_response(operation: str, **metadata) -> Dict:
-    """生成模拟视频响应"""
-    # 最小的 MP4 视频（1帧，黑屏）编码为 base64
-    mock_video_base64 = "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAr1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWU5ZjQ2IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEwIHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAABWWWIhAAz//727L4FNf2f0JcRLMXaSnA+KqSAgHc0wAAAAwAAAwAAFgn0I7DkqgAAAAlBmiRsQn/+tSqAAAAJQZ5CeIK/AAAAAAkBnmNqQn/+tSqAAAAJQZ5lbEJ//rUqAAAACUGeaGpCf/61KoAAAAJBnmhsQn/+tSqAAAAJQZ5qakJ//rUqAAAACUGebGxCf/61KgAAAAlBnm5qQn/+tSoAAAAJQZ5wbEJ//rUqAAAACUGecmpCf/61KgAAAAlBnnJsQn/+tSoAAAAJQZ50akJ//rUqAAAACUGedmxCf/61KgAAAAlBnnhqQn/+tSoAAAAJQZ56bEJ//rUqAAAACUGefGpCf/61KgAAAAlBnn5sQn/+tSoAAAAJQZ6AakJ//rUqAAAACUGegmxCf/61KgAAAAlBnoRqQn/+tSoAAAAJQZ6GbEJ//rUqAAAACUGeiGpCf/61KgAAAAlBnopsQn/+tSoAAAAJQZ6MakJ//rUqAAAACUGejmxCf/61KgAAAAlBnpBqQn/+tSoAAAAJQZ6SbEJ//rUqAAAACUGelGpCf/61KgAAAAlBnpZsQn/+tSoAAAAJQZ6YakJ//rUqAAAACUGemmxCf/61KgAAAAlBnpxqQn/+tSoAAAAJQZ6ebEJ//rUqAAAACUGeoGpCf/61KgAAAAlBnqJsQn/+tSoAAAAJQZ6kakJ//rUqAAAACUGepGxCf/61KgAAAAlBnqZqQn/+tSoAAAAJQZ6obEJ//rUqAAAACUGeqmpCf/61KgAAAAlBnqxsQn/+tSoAAAAJQZ6uakJ//rUqAAAACUGesGxCf/61KgAAAAlBnrJqQn/+tSoAAAAJQZ60bEJ//rUqAAAACUGetnpCf/61KgAAAAlBnrhsQn/+tSoAAAAJQZ66akJ//rUqAAAACUGevGxCf/61KgAAAAlBnr5qQn/+tSoAAAAJQZ7AbEJ//rUqAAAACUGewmpCf/61KgAAAAlBnsRsQn/+tSoAAAAJQZ7GakJ//rUqAAAACUGeyGxCf/61KgAAAAlBnspqQn/+tSoAAAAJQZ7MbEJ//rUqAAAACUGezmpCf/61KgAAAAlBns5sQn/+tSoAAAAJQZ7QakJ//rUqAAAACUGe0mxCf/61KgAAAAlBntRqQn/+tSoAAAAJQZ7WbEJ//rUqAAAACUGe2GpCf/61KgAAAAlBntpsQn/+tSoAAAAJQZ7cakJ//rUqAAAACUGe3mxCf/61KgAAAAlBnuBqQn/+tSoAAAAJQZ7ibEJ//rUqAAAACUGe5GpCf/61KgAAAAlBnuZsQn/+tSoAAAAJQZ7oakJ//rUqAAAACUGe6mxCf/61KgAAAAlBnuxqQn/+tSoAAAAJQZ7ubEJ//rUqAAAACUGe8GpCf/61KgAAAAlBnvJsQn/+tSoAAAAJQZ70akJ//rUqAAAACUGe9mxCf/61KgAAAAlBnvhqQn/+tSoAAAAJQZ76bEJ//rUqAAAACUGe/GpCf/61KgAAAAlBnv5sQn/+tSoAAAAJQZ8AakJ//rUqAAAACUGfAGxCf/61KgAAAAlBnwJqQn/+tSoAAAAJQZ8EbEJ//rUqAAAACUGfBmpCf/61KgAAAAlBnwhsQn/+tSoAAAAJQZ8KakJ//rUqAAAACUGfDGxCf/61KgAAAAlBnw5qQn/+tSoAAAAJQZ8QbEJ//rUqAAAACUGfEmpCf/61KgAAAAlBnxRsQn/+tSoAAAAJQZ8WakJ//rUqAAAACUGfGGxCf/61KgAAAAlBnxpqQn/+tSoAAAAJQZ8cbEJ//rUqAAAACUGfHmpCf/61KgAAAAlBnyBsQn/+tSoAAAAJQZ8iakJ//rUqAAAACUGfJGxCf/61KgAAAAlBnyZqQn/+tSoAAAAJQZ8obEJ//rUqAAAACUGfKmpCf/61KgAAAAlBnyxsQn/+tSoAAAAJQZ8uakJ//rUqAAAACUGfMGxCf/61KgAAAAlBnzJqQn/+tSoAAAAJQZ80bEJ//rUqAAAACUGfNmpCf/61KgAAAAlBnzhsQn/+tSoAAAAJQZ86akJ//rUqAAAACUGfPGxCf/61KgAAAAlBnz5qQn/+tSoAAAAJQZ9AbEJ//rUqAAAACUGfQmpCf/61KgAAAAlBn0RsQn/+tSoAAAAJQZ9GakJ//rUqAAAACUGfSGxCf/61KgAAAAlBn0pqQn/+tSoAAAAJQZ9MbEJ//rUqAAAACUGfTmpCf/61KgAAAAlBn1BsQn/+tSoAAAAJQZ9SakJ//rUqAAAACUGfVGxCf/61KgAAAAlBn1ZqQn/+tSoAAAAJQZ9YbEJ//rUqAAAACUGfWmpCf/61KgAAAAlBn1xsQn/+tSoAAAAJQZ9eakJ//rUqAAAACUGfYGxCf/61KgAAAAlBn2JqQn/+tSoAAAAJQZ9kbEJ//rUqAAAACUGfZmpCf/61KgAAAAlBn2hsQn/+tSoAAAAJQZ9qakJ//rUqAAAACUGfbGxCf/61KgAAAAlBn25qQn/+tSoAAAAJQZ9wbEJ//rUqAAAACUGfcmpCf/61KgAAAAlBn3RsQn/+tSoAAAAJQZ92akJ//rUqAAAACUGfeGxCf/61KgAAAAlBn3pqQn/+tSoAAAAJQZ98bEJ//rUqAAAACUGffmpCf/61KgAAAAlBn4BsQn/+tSoAAAAJQZ+CakJ//rUqAAAACUGfhGxCf/61KgAAAAlBn4ZqQn/+tSoAAAAJQZ+IbEJ//rUqAAAACUGfimpCf/61KgAAAAlBn4xsQn/+tSoAAAAJQZ+OakJ//rUqAAAACUGfkGxCf/61KgAAAAlBn5JqQn/+tSoAAAAJQZ+UbEJ//rUqAAAACUGflmpCf/61KgAAAAlBn5hsQn/+tSoAAAAJQZ+aakJ//rUqAAAACUGfnGxCf/61KgAAAAlBn55qQn/+tSoAAAAJQZ+gbEJ//rUqAAAACUGfompCf/61KgAAAAlBn6RsQn/+tSoAAAAJQZ+makJ//rUqAAAACUGfqGxCf/61KgAAAAlBn6pqQn/+tSoAAAAJQZ+sbEJ//rUqAAAACUGfrmpCf/61KgAAAAlBn7BsQn/+tSoAAAAJQZ+yakJ//rUqAAAACUGftGxCf/61KgAAAAlBn7ZqQn/+tSoAAAAJQZ+4bEJ//rUqAAAACUGfumpCf/61KgAAAAlBn7xsQn/+tSoAAAAJQZ++akJ//rUqAAAACUGfwGxCf/61KgAAAAlBn8JqQn/+tSoAAAAJQZ/EbEJ//rUqAAAACUGfxmpCf/61KgAAAAlBn8hsQn/+tSoAAAAJQZ/KakJ//rUqAAAACUGfzGxCf/61KgAAAAlBn85qQn/+tSoAAAAJQZ/QbEJ//rUqAAAACUGf0mpCf/61KgAAAAlBn9RsQn/+tSoAAAAJQZ/WakJ//rUqAAAACUGf2GxCf/61KgAAAAlBn9pqQn/+tSoAAAAJQZ/cbEJ//rUqAAAACUGf3mpCf/61KgAAAAlBn+BsQn/+tSoAAAAJQZ/iakJ//rUqAAAACUGf5GxCf/61KgAAAAlBn+ZqQn/+tSoAAAAJQZ/obEJ//rUqAAAACUGf6mpCf/61KgAAAAlBn+xsQn/+tSoAAAAJQZ/uakJ//rUqAAAACUGf8GxCf/61KgAAAAlBn/JqQn/+tSoAAAAJQZ/0bEJ//rUqAAAACUGf9mpCf/61KgAAAAlBn/hsQn/+tSoAAAAJQZ/6akJ//rUqAAAACUGf/GxCf/61KgAAAAlBn/5qQn/+tSoAAAAJQaAAakJ//rUqAAAACUGgAGxCf/61KgAAAAlBoAJqQn/+tSoAAAAJQaAEbEJ//rUqAAAACUGgBmpCf/61KgAAAAlBoAhsQn/+tSoAAAAJQaAKakJ//rUqAAAACUGgDGxCf/61KgAAAAlBoA5qQn/+tSoAAAAJQaAQbEJ//rUqAAAACUGgEmpCf/61KgAAAAlBoRRsQn/+tSoAAAAJQaEWakJ//rUqAAAACUGhGGxCf/61KgAAAAlBoRpqQn/+tSoAAAAJQaEcbEJ//rUqAAAACUGhHmpCf/61KgAAAAlBoSBsQn/+tSoAAAAJQaEiakJ//rUqAAAACUGhJGxCf/61KgAAAAlBoSZqQn/+tSoAAAAJQaEobEJ//rUqAAAACUGhKmpCf/61KgAAAAlBoSxsQn/+tSoAAAAJQaEuakJ//rUqAAAACUGhMGxCf/61KgAAAAlBoTJqQn/+tSoAAAAJQaE0bEJ//rUqAAAACUGhNmpCf/61KgAAAAlBoThsQn/+tSoAAAAJQaE6akJ//rUqAAAACUGhPGxCf/61KgAAAAlBoT5qQn/+tSoAAAAJQaFAbEJ//rUqAAAACUGhQmpCf/61KgAAAAlBoURsQn/+tSoAAAAJQaFGakJ//rUqAAAACUGhSGxCf/61KgAAAAlBoUpqQn/+tSoAAAAJQaFMbEJ//rUqAAAACUGhTmpCf/61KgAAAAlBoVBsQn/+tSoAAAAJQaFSakJ//rUqAAAACUGhVGxCf/61KgAAAAlBoVZqQn/+tSoAAAAJQaFYbEJ//rUqAAAACUGhWmpCf/61KgAAAAlBoVxsQn/+tSoAAAAJQaFeakJ//rUqAAAACUGhYGxCf/61KgAAAAlBoWJqQn/+tSoAAAAJQaFkbEJ//rUqAAAACUGhZmpCf/61KgAAAAlBoWhsQn/+tSoAAAAJQaFqakJ//rUqAAAACUGhbGxCf/61KgAAAAlBoW5qQn/+tSoAAAAJQaFwbEJ//rUqAAAACUGhcmpCf/61KgAAAAlBoXRsQn/+tSoAAAAJQaF2akJ//rUqAAAACUGheGxCf/61KgAAAAlBoXpqQn/+tSoAAAAJQaF8bEJ//rUqAAAACUGhfmpCf/61KgAAAAlBoYBsQn/+tSoAAAAJQaGCakJ//rUqAAAACUGhhGxCf/61KgAAAAlBoYZqQn/+tSoAAAAJQaGIbEJ//rUqAAAACUGhimpCf/61KgAAAAlBoYxsQn/+tSoAAAAJQaGOakJ//rUqAAAACUGhkGxCf/61KgAAAAlBoZJqQn/+tSoAAAAJQaGUbEJ//rUqAAAACUGhlmpCf/61KgAAAAlBoZhsQn/+tSoAAAAJQaGaakJ//rUqAAAACUGhnGxCf/61KgAAAAlBoZ5qQn/+tSoAAAAJQaGgbEJ//rUqAAAACUGhompCf/61KgAAAAlBoaRsQn/+tSoAAAAJQaGmakJ//rUqAAAACUGhqGxCf/61KgAAAAlBoappQn/+tSoAAAAJQaGsbEJ//rUqAAAACUGhrmpCf/61KgAAAAlBobBsQn/+tSoAAAAJQaGyakJ//rUqAAAACUGhtGxCf/61KgAAAAlBobZqQn/+tSoAAAAJQaG4bEJ//rUqAAAACUGhumpCf/61KgAAAAlBobxsQn/+tSoAAAAJQaG+akJ//rUqAAAACUGhwGxCf/61KgAAAAlBocJqQn/+tSoAAAAJQaHEbEJ//rUqAAAACUGhxmpCf/61KgAAAAlBochsQn/+tSoAAAAJQaHKakJ//rUqAAAACUGhzGxCf/61KgAAAAlBoc5qQn/+tSoAAAAJQaHQbEJ//rUqAAAACUGh0mpCf/61KgAAAAlBodRsQn/+tSoAAAAJQaHWakJ//rUqAAAACUGh2GxCf/61KgAAAAlBodpqQn/+tSoAAAAJQaHcbEJ//rUqAAAACUGh3mpCf/61KgAAAAlBoeB"
-
-    return {
-        'type': 'video',
-        'data': f"data:video/mp4;base64,{mock_video_base64}",
-        'mimeType': 'video/mp4',
-        'metadata': {
-            'operation': f"{operation} (mock)",
-            'note': 'Mock video due to ComfyUI unavailability',
-            'server_url': COMFYUI_SERVER_URL,
-            'fallback_enabled': COMFYUI_ENABLE_FALLBACK,
-            **metadata
-        }
-    }
 
 @mcp.tool()
 def search_website(search_term: str) -> Dict:
@@ -525,13 +491,6 @@ def generate_image_with_context(
 
         # 检查 ComfyUI 连接
         if not test_comfyui_connectivity():
-            if COMFYUI_ENABLE_FALLBACK:
-                return get_mock_image_response(
-                    operation=workflow_type,
-                    prompt=prompt,
-                    dimensions=f"{width}x{height}",
-                    error="ComfyUI server not accessible"
-                )
             return {"error": "ComfyUI server is not accessible"}
 
         # 使用与原始项目相同的 FLUX 文本到图像工作流
@@ -541,13 +500,6 @@ def generate_image_with_context(
         result = submit_comfyui_workflow(workflow)
 
         if result.get('error'):
-            if COMFYUI_ENABLE_FALLBACK:
-                return get_mock_image_response(
-                    operation=workflow_type,
-                    prompt=prompt,
-                    dimensions=f"{width}x{height}",
-                    error=result['error']
-                )
             return {"error": result['error']}
 
         return {
@@ -568,13 +520,6 @@ def generate_image_with_context(
         }
 
     except Exception as e:
-        if COMFYUI_ENABLE_FALLBACK:
-            return get_mock_image_response(
-                operation=workflow_type,
-                prompt=prompt,
-                dimensions=f"{width}x{height}",
-                error=str(e)
-            )
         return {"error": f"Image generation failed: {str(e)}"}
 
 @mcp.tool()
@@ -602,8 +547,7 @@ def get_comfyui_config() -> Dict:
         'config': {
             'timeout': COMFYUI_TIMEOUT,
             'poll_interval': COMFYUI_POLL_INTERVAL,
-            'max_retries': COMFYUI_MAX_RETRIES,
-            'enable_fallback': COMFYUI_ENABLE_FALLBACK
+            'max_retries': COMFYUI_MAX_RETRIES
         },
         'connectivity': {
             'server_accessible': test_comfyui_connectivity(),
@@ -648,12 +592,6 @@ def generate_video_with_context(
 
         # 检查 ComfyUI 连接
         if not test_comfyui_connectivity():
-            if COMFYUI_ENABLE_FALLBACK:
-                return get_mock_video_response(
-                    operation=workflow_type,
-                    prompt=prompt,
-                    error="ComfyUI server not accessible"
-                )
             return {"error": "ComfyUI server is not accessible"}
 
         # 使用与原始项目相同的 WanVideo 文本到视频工作流
@@ -678,12 +616,6 @@ def generate_video_with_context(
         result = submit_comfyui_workflow(workflow)
 
         if result.get('error'):
-            if COMFYUI_ENABLE_FALLBACK:
-                return get_mock_video_response(
-                    operation=workflow_type,
-                    prompt=prompt,
-                    error=result['error']
-                )
             return {"error": result['error']}
 
         # 检查是否获得了视频数据
@@ -709,12 +641,6 @@ def generate_video_with_context(
             return {"error": "No video data received from ComfyUI"}
 
     except Exception as e:
-        if COMFYUI_ENABLE_FALLBACK:
-            return get_mock_video_response(
-                operation=workflow_type,
-                prompt=prompt,
-                error=str(e)
-            )
         return {"error": f"Video generation failed: {str(e)}"}
 
 if __name__ == "__main__":
