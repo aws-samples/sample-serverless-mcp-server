@@ -17,7 +17,19 @@ STDIO MCP Server (`mcp_server_stdio_sample.py`) 是一个基于 FastMCP 库的�
 #### 启动服务器
 ```bash
 cd src/python
+
+# 基本启动 (默认 localhost:8188)
 python mcp_server_stdio_sample.py
+
+# 指定 ComfyUI 服务器 URL
+python mcp_server_stdio_sample.py --comfyui-url http://your-server:8188
+
+# 完整参数示例
+python mcp_server_stdio_sample.py \
+    --comfyui-url http://localhost:8188 \
+    --timeout 300 \
+    --max-retries 3 \
+    --enable-fallback
 ```
 
 #### 与 AWS Strands Agent 集成
@@ -28,7 +40,7 @@ from strands.tools.mcp import MCPTool
 # 创建 MCP 工具 (使用 FastMCP)
 mcp_tool = MCPTool(
     name="comfyui_generator",
-    command=["python", "mcp_server_stdio_sample.py"],
+    command=["python", "mcp_server_stdio_sample.py", "--comfyui-url", "http://localhost:8188"],
     description="ComfyUI image and video generation tools built with FastMCP"
 )
 
@@ -45,6 +57,28 @@ agent = Agent(
 - **自动类型检查**: 基于函数签名自动生成工具模式
 - **内置错误处理**: 自动处理异常和错误响应
 - **标准兼容**: 完全兼容 MCP 协议规范
+
+### 启动参数配置
+
+服务器支持通过命令行参数配置ComfyUI连接：
+
+**可用参数：**
+- `--comfyui-url`: ComfyUI服务器URL (默认: http://localhost:8188)
+- `--timeout`: 请求超时时间，秒 (默认: 300)
+- `--max-retries`: 最大重试次数 (默认: 3)
+- `--enable-fallback`: 启用回退模式 (默认: True)
+
+**使用示例：**
+```bash
+# 连接到远程ComfyUI服务器
+python mcp_server_stdio_sample.py --comfyui-url http://192.168.1.100:8188
+
+# 自定义超时和重试
+python mcp_server_stdio_sample.py \
+    --comfyui-url http://localhost:8188 \
+    --timeout 600 \
+    --max-retries 5
+```
 
 ## 支持的工具
 
@@ -96,6 +130,8 @@ agent = Agent(
   - `seed` (可选): 随机种子 (默认: -1)
   - `frame_rate` (可选): 视频帧率 (默认: 16)
   - `negative_prompt` (可选): 负面提示词
+
+
 
 ### HTTP MCP Server 工具 (传统)
 

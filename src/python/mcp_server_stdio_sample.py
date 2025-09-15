@@ -10,7 +10,7 @@ Built with FastMCP library.
 import os
 import base64
 import sys
-from typing import Dict, Any
+import argparse
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -18,13 +18,14 @@ from mcp.server.fastmcp import FastMCP
 # Add the server directory to the path to import ComfyUI generator
 sys.path.append(os.path.join(os.path.dirname(__file__), 'server'))
 
-from comfyui_generator import ComfyUIGenerator, ComfyUIConfig, ImageUtils
+from comfyui_generator import ComfyUIGenerator, ComfyUIConfig
 
 # Initialize FastMCP server
 mcp = FastMCP("ComfyUI Generator")
 
-# Initialize ComfyUI generator
-generator = ComfyUIGenerator()
+# Global variables for configuration and generator
+config = None
+generator = None
 
 
 def read_image_file(file_path: str) -> str:
@@ -290,5 +291,58 @@ def generate_video_from_image(
         raise Exception(f"Failed to generate video from image: {str(e)}")
 
 
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="ComfyUI MCP Server")
+    parser.add_argument(
+        "--comfyui-url",
+        default="http://localhost:8188",
+        help="ComfyUI server URL (default: http://localhost:8188)"
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=300,
+        help="Request timeout in seconds (default: 300)"
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=3,
+        help="Maximum number of retries (default: 3)"
+    )
+    parser.add_argument(
+        "--enable-fallback",
+        action="store_true",
+        default=True,
+        help="Enable fallback mode (default: True)"
+    )
+    return parser.parse_args()
+
+
+def initialize_comfyui(args):
+    """Initialize ComfyUI configuration and generator"""
+    global config, generator
+
+    # Create configuration
+    config = ComfyUIConfig()
+    config.server_url = args.comfyui_url
+    config.timeout = args.timeout
+    config.max_retries = args.max_retries
+    config.enable_fallback = args.enable_fallback
+
+    # Initialize generator
+    generator = ComfyUIGenerator(config)
+
+    print(f"ComfyUI MCP Server initialized with URL: {config.server_url}", file=sys.stderr)
+
+
 if __name__ == "__main__":
+    # Parse command line arguments
+    args = parse_args()
+
+    # Initialize ComfyUI with configuration
+    initialize_comfyui(args)
+
+    # Run the MCP server
     mcp.run()
